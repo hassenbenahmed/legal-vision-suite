@@ -1,8 +1,6 @@
 import { Scale, Mail, Phone, MapPin } from "lucide-react";
-
 const Footer = () => {
-  return (
-    <footer className="bg-primary text-primary-foreground">
+  return <footer className="bg-primary text-primary-foreground">
       <div className="container mx-auto px-6 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           <div className="col-span-1">
@@ -55,7 +53,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-primary-foreground/20 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-primary-foreground/60">
-          <p>&copy; 2024 LegalVision Suite. Tous droits réservés.</p>
+          <p>© 2025 LegalVision Suite. Tous droits réservés.</p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#" className="hover:text-accent transition-colors">Mentions légales</a>
             <a href="#" className="hover:text-accent transition-colors">Confidentialité</a>
@@ -63,8 +61,6 @@ const Footer = () => {
           </div>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 };
-
 export default Footer;
