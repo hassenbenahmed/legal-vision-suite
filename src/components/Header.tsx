@@ -30,10 +30,14 @@ const Header = () => {
           </nav>
           
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" className="text-muted-foreground hover:text-primary">
+            <Button 
+              variant="ghost" 
+              className="text-muted-foreground hover:text-primary"
+              onClick={() => window.location.href = '/auth'}
+            >
               Connexion
             </Button>
-            <Button>
+            <Button onClick={() => window.location.href = '/auth'}>
               Essai gratuit
             </Button>
           </div>
@@ -64,10 +68,17 @@ const Header = () => {
                 Tarifs
               </a>
               <div className="flex flex-col space-y-2 pt-4">
-                <Button variant="ghost" className="justify-start">
+                <Button 
+                  variant="ghost" 
+                  className="justify-start"
+                  onClick={() => window.location.href = '/auth'}
+                >
                   Connexion
                 </Button>
-                <Button className="justify-start">
+                <Button 
+                  className="justify-start"
+                  onClick={() => window.location.href = '/auth'}
+                >
                   Essai gratuit
                 </Button>
               </div>
