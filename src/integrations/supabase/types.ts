@@ -14,6 +14,451 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          appointment_type: string
+          client_id: string | null
+          created_at: string
+          description: string | null
+          end_datetime: string
+          id: string
+          legal_case_id: string | null
+          location: string | null
+          notes: string | null
+          reminder_sent: boolean | null
+          start_datetime: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_type?: string
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_datetime: string
+          id?: string
+          legal_case_id?: string | null
+          location?: string | null
+          notes?: string | null
+          reminder_sent?: boolean | null
+          start_datetime: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_type?: string
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_datetime?: string
+          id?: string
+          legal_case_id?: string | null
+          location?: string | null
+          notes?: string | null
+          reminder_sent?: boolean | null
+          start_datetime?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_legal_case_id_fkey"
+            columns: ["legal_case_id"]
+            isOneToOne: false
+            referencedRelation: "legal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          client_type: string
+          company_name: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          registration_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          client_type?: string
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          registration_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          client_type?: string
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          registration_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      communications: {
+        Row: {
+          client_id: string | null
+          communication_date: string
+          communication_type: string
+          contact_person: string | null
+          content: string | null
+          created_at: string
+          direction: string
+          follow_up_date: string | null
+          follow_up_required: boolean | null
+          id: string
+          legal_case_id: string | null
+          subject: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          communication_date?: string
+          communication_type?: string
+          contact_person?: string | null
+          content?: string | null
+          created_at?: string
+          direction: string
+          follow_up_date?: string | null
+          follow_up_required?: boolean | null
+          id?: string
+          legal_case_id?: string | null
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          communication_date?: string
+          communication_type?: string
+          contact_person?: string | null
+          content?: string | null
+          created_at?: string
+          direction?: string
+          follow_up_date?: string | null
+          follow_up_required?: boolean | null
+          id?: string
+          legal_case_id?: string | null
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communications_legal_case_id_fkey"
+            columns: ["legal_case_id"]
+            isOneToOne: false
+            referencedRelation: "legal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          description: string | null
+          document_type: string
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          is_confidential: boolean | null
+          legal_case_id: string | null
+          mime_type: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          is_confidential?: boolean | null
+          legal_case_id?: string | null
+          mime_type?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          is_confidential?: boolean | null
+          legal_case_id?: string | null
+          mime_type?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_legal_case_id_fkey"
+            columns: ["legal_case_id"]
+            isOneToOne: false
+            referencedRelation: "legal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          client_id: string
+          created_at: string
+          due_date: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          legal_case_id: string | null
+          notes: string | null
+          paid_amount: number
+          payment_date: string | null
+          payment_method: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          legal_case_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          payment_date?: string | null
+          payment_method?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          legal_case_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          payment_date?: string | null
+          payment_method?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_legal_case_id_fkey"
+            columns: ["legal_case_id"]
+            isOneToOne: false
+            referencedRelation: "legal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_cases: {
+        Row: {
+          actual_value: number | null
+          case_number: string
+          case_type: string
+          client_id: string | null
+          court_name: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          estimated_value: number | null
+          id: string
+          opposing_party: string | null
+          priority: string
+          start_date: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_value?: number | null
+          case_number: string
+          case_type: string
+          client_id?: string | null
+          court_name?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          estimated_value?: number | null
+          id?: string
+          opposing_party?: string | null
+          priority?: string
+          start_date?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_value?: number | null
+          case_number?: string
+          case_type?: string
+          client_id?: string | null
+          court_name?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          estimated_value?: number | null
+          id?: string
+          opposing_party?: string | null
+          priority?: string
+          start_date?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_cases_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_name: string | null
@@ -46,6 +491,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          legal_case_id: string | null
+          priority: string
+          reminder_date: string | null
+          status: string
+          task_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          legal_case_id?: string | null
+          priority?: string
+          reminder_date?: string | null
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          legal_case_id?: string | null
+          priority?: string
+          reminder_date?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_legal_case_id_fkey"
+            columns: ["legal_case_id"]
+            isOneToOne: false
+            referencedRelation: "legal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
