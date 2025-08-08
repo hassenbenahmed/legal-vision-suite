@@ -12,6 +12,7 @@ import Cases from "./pages/Cases";
 import Clients from "./pages/Clients";
 import Tasks from "./pages/Tasks";
 import Invoices from "./pages/Invoices";
+import Appointments from "./pages/Appointments";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -73,6 +74,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Invoices />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/appointments" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Appointments />
                   </Layout>
                 </ProtectedRoute>
               } 
