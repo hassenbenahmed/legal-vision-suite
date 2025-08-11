@@ -254,7 +254,7 @@ const Clients = () => {
           </Card>
         </div>
 
-        {filteredClients.length === 0 ? (
+        {clients.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -277,7 +277,7 @@ const Clients = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredClients.map((client) => {
+            {clients.map((client) => {
               const ClientIcon = getClientIcon(client.client_type);
               return (
                 <Card key={client.id} className="hover:shadow-lg transition-shadow">
