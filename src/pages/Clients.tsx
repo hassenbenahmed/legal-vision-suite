@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, Users, Search, Mail, Phone, Building, User, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext } from '@/components/ui/pagination';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 interface Client {
   id: string;
@@ -28,42 +35,58 @@ interface Client {
 const Clients = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // SEO
+  useEffect(() => {
+    document.title = "Clients | CRM juridique";
+  }, []);
+
   const [clients, setClients] = useState<Client[]>([]);
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(9);
+  const [totalCount, setTotalCount] = useState(0); // filtered count for pagination
+  const [totalAllCount, setTotalAllCount] = useState(0); // overall count for stats
+  const [countIndividuals, setCountIndividuals] = useState(0);
+  const [countCompanies, setCountCompanies] = useState(0);
+  const [openNew, setOpenNew] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchCounts();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchClients();
     }
-  }, [user]);
-
-  useEffect(() => {
-    const filtered = clients.filter(client => {
-      const searchLower = searchTerm.toLowerCase();
-      const clientName = getClientName(client).toLowerCase();
-      const email = client.email?.toLowerCase() || '';
-      const phone = client.phone?.toLowerCase() || '';
-      const company = client.company_name?.toLowerCase() || '';
-      
-      return clientName.includes(searchLower) || 
-             email.includes(searchLower) || 
-             phone.includes(searchLower) ||
-             company.includes(searchLower);
-    });
-    setFilteredClients(filtered);
-  }, [clients, searchTerm]);
+  }, [user, page, pageSize, searchTerm]);
 
   const fetchClients = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('clients')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
+
+      if (searchTerm.trim()) {
+        const term = `%${searchTerm.trim()}%`;
+        query = query.or(
+          `first_name.ilike.${term},last_name.ilike.${term},company_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`
+        );
+      }
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error, count } = await query.range(from, to);
 
       if (error) throw error;
       setClients(data || []);
+      setTotalCount(count || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des clients:', error);
       toast({
@@ -73,6 +96,76 @@ const Clients = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCounts = async () => {
+    try {
+      const [totalRes, indivRes, compRes] = await Promise.all([
+        supabase.from('clients').select('*', { count: 'exact', head: true }),
+        supabase.from('clients').select('*', { count: 'exact', head: true }).eq('client_type', 'Particulier'),
+        supabase.from('clients').select('*', { count: 'exact', head: true }).eq('client_type', 'Entreprise'),
+      ]);
+      setTotalAllCount(totalRes.count || 0);
+      setCountIndividuals(indivRes.count || 0);
+      setCountCompanies(compRes.count || 0);
+    } catch (error) {
+      console.error('Erreur lors du comptage des clients:', error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const ok = window.confirm('Supprimer ce client ? Cette action est irréversible.');
+    if (!ok) return;
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Client supprimé', description: 'Le client a été supprimé avec succès.' });
+      if (clients.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        fetchClients();
+      }
+      fetchCounts();
+    } catch (error) {
+      console.error('Erreur lors de la suppression du client:', error);
+      toast({ title: 'Erreur', description: 'Suppression impossible', variant: 'destructive' });
+    }
+  };
+
+  const newClientSchema = z.object({
+    client_type: z.enum(['Particulier', 'Entreprise']),
+    first_name: z.string().optional(),
+    last_name: z.string().optional(),
+    company_name: z.string().optional(),
+    email: z.union([z.string().email(), z.literal('')]).optional(),
+    phone: z.string().optional(),
+  });
+
+  type NewClientForm = z.infer<typeof newClientSchema>;
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<NewClientForm>({
+    resolver: zodResolver(newClientSchema),
+    defaultValues: { client_type: 'Particulier', first_name: '', last_name: '', company_name: '', email: '', phone: '' },
+  });
+
+  const onSubmit = async (values: NewClientForm) => {
+    try {
+      const payload: any = { ...values, user_id: user?.id };
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === '' || payload[k] === undefined) delete payload[k];
+      });
+      const { error } = await supabase.from('clients').insert([payload]);
+      if (error) throw error;
+      toast({ title: 'Client créé', description: 'Nouveau client ajouté avec succès.' });
+      setOpenNew(false);
+      reset();
+      setPage(1);
+      fetchClients();
+      fetchCounts();
+    } catch (error) {
+      console.error('Erreur lors de la création du client:', error);
+      toast({ title: 'Erreur', description: 'Création impossible', variant: 'destructive' });
     }
   };
 
