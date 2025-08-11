@@ -176,6 +176,8 @@ const Clients = () => {
     return `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Client sans nom';
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
   const getClientIcon = (clientType: string) => {
     return clientType === 'Entreprise' ? Building : User;
   };
@@ -198,10 +200,69 @@ const Clients = () => {
             <h1 className="text-3xl font-bold text-foreground">Gestion des Clients</h1>
             <p className="text-muted-foreground">Gérez votre portefeuille clients</p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Client
-          </Button>
+          <Dialog open={openNew} onOpenChange={setOpenNew}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau Client
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Nouveau Client</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div>
+                  <Label htmlFor="client_type">Type de client</Label>
+                  <Select value={watch('client_type')} onValueChange={(value) => setValue('client_type', value as 'Particulier' | 'Entreprise')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Particulier">Particulier</SelectItem>
+                      <SelectItem value="Entreprise">Entreprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {watch('client_type') === 'Particulier' ? (
+                  <>
+                    <div>
+                      <Label htmlFor="first_name">Prénom</Label>
+                      <Input {...register('first_name')} placeholder="Prénom" />
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Nom</Label>
+                      <Input {...register('last_name')} placeholder="Nom" />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <Label htmlFor="company_name">Nom de l'entreprise</Label>
+                    <Input {...register('company_name')} placeholder="Nom de l'entreprise" />
+                  </div>
+                )}
+                
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input {...register('email')} type="email" placeholder="email@exemple.com" />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Téléphone</Label>
+                  <Input {...register('phone')} placeholder="Téléphone" />
+                </div>
+                
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpenNew(false)}>
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Création...' : 'Créer'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Barre de recherche */}
@@ -225,7 +286,7 @@ const Clients = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{clients.length}</div>
+              <div className="text-2xl font-bold">{totalAllCount}</div>
             </CardContent>
           </Card>
           
@@ -236,7 +297,7 @@ const Clients = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {clients.filter(c => c.client_type === 'Particulier').length}
+                {countIndividuals}
               </div>
             </CardContent>
           </Card>
@@ -248,7 +309,7 @@ const Clients = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {clients.filter(c => c.client_type === 'Entreprise').length}
+                {countCompanies}
               </div>
             </CardContent>
           </Card>
@@ -268,7 +329,7 @@ const Clients = () => {
                 }
               </p>
               {!searchTerm && (
-                <Button>
+                <Button onClick={() => setOpenNew(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Ajouter un client
                 </Button>
@@ -350,7 +411,12 @@ const Clients = () => {
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
-                      <Button variant="outline" size="sm" className="text-destructive">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-destructive"
+                        onClick={() => handleDelete(client.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -358,6 +424,41 @@ const Clients = () => {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-8 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => page > 1 && setPage(page - 1)}
+                    className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => setPage(pageNum)}
+                      isActive={pageNum === page}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => page < totalPages && setPage(page + 1)}
+                    className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         )}
       </div>
