@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, FileText, Eye, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface LegalCase {
   id: string;
@@ -70,6 +73,53 @@ const Cases = () => {
     }
   };
 
+  const [open, setOpen] = useState(false);
+
+  const handleCreateCase = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user) return;
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    const title = String(formData.get('title') || '').trim();
+    const case_number = String(formData.get('case_number') || '').trim();
+    const case_type = String(formData.get('case_type') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+    const client_id_raw = String(formData.get('client_id') || '').trim();
+
+    if (!title || !case_number || !case_type) {
+      toast({ title: 'Champs requis', description: 'Titre, numéro et type sont requis', variant: 'destructive' });
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    const payload = {
+      user_id: user.id,
+      title,
+      case_number,
+      case_type,
+      status: 'Ouvert' as const,
+      priority: 'Normale' as const,
+      start_date: today,
+      description: description || undefined,
+      client_id: client_id_raw ? client_id_raw : undefined,
+    };
+
+    const { error } = await supabase.from('legal_cases').insert(payload as any);
+
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Succès', description: 'Dossier créé avec succès' });
+    setOpen(false);
+    form.reset();
+    await fetchCases();
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'Ouvert': return 'default';
@@ -116,10 +166,48 @@ const Cases = () => {
             <h1 className="text-3xl font-bold text-foreground">Gestion des Dossiers</h1>
             <p className="text-muted-foreground">Gérez vos dossiers juridiques</p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Dossier
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau Dossier
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nouveau dossier</DialogTitle>
+                <DialogDescription>Créez un nouveau dossier juridique.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateCase} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="title">Titre</Label>
+                    <Input id="title" name="title" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="case_number">Numéro de dossier</Label>
+                    <Input id="case_number" name="case_number" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="case_type">Type de dossier</Label>
+                    <Input id="case_type" name="case_type" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="client_id">Client ID (optionnel)</Label>
+                    <Input id="client_id" name="client_id" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Input id="description" name="description" />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+                  <Button type="submit">Créer</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {cases.length === 0 ? (
@@ -130,7 +218,7 @@ const Cases = () => {
               <p className="text-muted-foreground mb-4">
                 Commencez par créer votre premier dossier juridique
               </p>
-              <Button>
+              <Button onClick={() => setOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un dossier
               </Button>

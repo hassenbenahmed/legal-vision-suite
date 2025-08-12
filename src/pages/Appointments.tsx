@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, MapPin, Plus, Users, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const Appointments = () => {
   const { user } = useAuth();
@@ -34,6 +37,58 @@ const Appointments = () => {
     },
     enabled: !!user,
   });
+
+  const [open, setOpen] = useState(false);
+
+  const handleCreateAppointment = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user) return;
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    const title = String(formData.get('title') || '').trim();
+    const start = String(formData.get('start_datetime') || '');
+    const end = String(formData.get('end_datetime') || '');
+    const location = String(formData.get('location') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+    const client_id_raw = String(formData.get('client_id') || '').trim();
+    const legal_case_id_raw = String(formData.get('legal_case_id') || '').trim();
+
+    if (!title || !start || !end) {
+      toast({
+        title: 'Champs requis',
+        description: 'Titre, début et fin sont requis',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const payload = {
+      user_id: user.id,
+      title,
+      status: 'Programmé' as const,
+      appointment_type: 'Consultation' as const,
+      start_datetime: new Date(start).toISOString(),
+      end_datetime: new Date(end).toISOString(),
+      location: location || undefined,
+      description: description || undefined,
+      client_id: client_id_raw ? client_id_raw : undefined,
+      legal_case_id: legal_case_id_raw ? legal_case_id_raw : undefined,
+    };
+
+    const { error } = await supabase.from('appointments').insert(payload as any);
+
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Succès', description: 'Rendez-vous créé avec succès' });
+    setOpen(false);
+    form.reset();
+    await queryClient.invalidateQueries({ queryKey: ['appointments'] });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -86,10 +141,56 @@ const Appointments = () => {
               Gérez vos rendez-vous et consultations clients
             </p>
           </div>
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Nouveau RDV
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Nouveau RDV
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nouveau rendez-vous</DialogTitle>
+                <DialogDescription>Créez un nouveau rendez-vous.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateAppointment} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="title">Titre</Label>
+                    <Input id="title" name="title" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="location">Lieu</Label>
+                    <Input id="location" name="location" />
+                  </div>
+                  <div>
+                    <Label htmlFor="start_datetime">Début</Label>
+                    <Input id="start_datetime" name="start_datetime" type="datetime-local" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="end_datetime">Fin</Label>
+                    <Input id="end_datetime" name="end_datetime" type="datetime-local" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="client_id">Client ID (optionnel)</Label>
+                    <Input id="client_id" name="client_id" />
+                  </div>
+                  <div>
+                    <Label htmlFor="legal_case_id">Dossier ID (optionnel)</Label>
+                    <Input id="legal_case_id" name="legal_case_id" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Input id="description" name="description" />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+                  <Button type="submit">Créer</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -104,7 +205,7 @@ const Appointments = () => {
               <p className="text-muted-foreground text-center mb-4">
                 Commencez par créer votre premier rendez-vous client.
               </p>
-              <Button className="flex items-center gap-2">
+              <Button className="flex items-center gap-2" onClick={() => setOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Créer un rendez-vous
               </Button>
