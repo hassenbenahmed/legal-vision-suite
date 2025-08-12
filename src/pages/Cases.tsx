@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import CaseDocuments from '@/components/cases/CaseDocuments';
 
 interface LegalCase {
   id: string;
@@ -72,9 +73,8 @@ const Cases = () => {
       setLoading(false);
     }
   };
-
   const [open, setOpen] = useState(false);
-
+  const [selectedCase, setSelectedCase] = useState<LegalCase | null>(null);
   const handleCreateCase = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
@@ -298,6 +298,9 @@ const Cases = () => {
 
                   <div className="flex justify-between items-center mt-4 pt-4 border-t">
                     <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setSelectedCase(legalCase)}>
+                        <FileText className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -314,6 +317,17 @@ const Cases = () => {
             ))}
           </div>
         )}
+
+        <Dialog open={!!selectedCase} onOpenChange={(o) => !o && setSelectedCase(null)}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Documents — {selectedCase?.title}</DialogTitle>
+            </DialogHeader>
+            {selectedCase && (
+              <CaseDocuments caseId={selectedCase.id} clientId={selectedCase.client_id} />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
