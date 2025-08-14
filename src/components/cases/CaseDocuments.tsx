@@ -217,12 +217,14 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
-                    <DialogTitle>Gestion des documents requis</DialogTitle>
+                    <DialogTitle>Documents requis pour ce dossier</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="flex justify-center">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-medium">Documents requis</h4>
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => setShowManageRequiredDocs(!showManageRequiredDocs)}
                       >
                         Gérer la liste
@@ -230,7 +232,7 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
                     </div>
 
                     {showManageRequiredDocs && (
-                      <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                      <div className="space-y-3 p-4 border rounded-lg bg-muted/50 mb-4">
                         <div className="flex gap-2">
                           <Input
                             placeholder="Nom du document requis"
@@ -257,6 +259,37 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
                           ))}
                         </div>
                       </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {requiredDocs.map((cat) => {
+                        const hasDoc = docs.some(d => d.document_type === cat);
+                        return (
+                          <div key={cat} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              {hasDoc ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                              )}
+                              <span className="font-medium">{cat}</span>
+                            </div>
+                            <Badge variant={hasDoc ? "default" : "secondary"}>
+                              {hasDoc ? "Présent" : "Manquant"}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {missingCategories.length > 0 && (
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          <strong>{missingCategories.length} document(s) manquant(s) :</strong> {missingCategories.join(", ")}. 
+                          Vous pouvez les ajouter maintenant ou plus tard.
+                        </AlertDescription>
+                      </Alert>
                     )}
 
                     <div className="flex justify-end gap-2">
