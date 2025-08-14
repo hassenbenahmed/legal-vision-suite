@@ -19,11 +19,11 @@ interface CaseDocumentsProps {
   clientId?: string;
 }
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "Contrats",
   "Pièces",
   "Courriers",
-  "Preuves",
+  "Preuves", 
   "Plaidoiries",
   "Autres",
 ] as const;
@@ -42,10 +42,13 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
   const [docs, setDocs] = useState<any[]>([]);
   const [showRequiredDocs, setShowRequiredDocs] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [requiredDocs, setRequiredDocs] = useState<string[]>([]);
+  const [newRequiredDoc, setNewRequiredDoc] = useState("");
+  const [showManageRequiredDocs, setShowManageRequiredDocs] = useState(false);
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("Autres");
+  const [category, setCategory] = useState<string>("Autres");
 
   const accept = useMemo(
     () => ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -54,8 +57,36 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
 
   const missingCategories = useMemo(() => {
     const existingCategories = docs.map(d => d.document_type);
-    return CATEGORIES.filter(cat => !existingCategories.includes(cat));
-  }, [docs]);
+    return requiredDocs.filter(cat => !existingCategories.includes(cat));
+  }, [docs, requiredDocs]);
+
+  // Initialize required docs with default categories
+  useEffect(() => {
+    const savedRequiredDocs = localStorage.getItem(`requiredDocs_${caseId}`);
+    if (savedRequiredDocs) {
+      setRequiredDocs(JSON.parse(savedRequiredDocs));
+    } else {
+      setRequiredDocs([...DEFAULT_CATEGORIES]);
+    }
+  }, [caseId]);
+
+  // Save required docs to localStorage when changed
+  useEffect(() => {
+    if (requiredDocs.length > 0) {
+      localStorage.setItem(`requiredDocs_${caseId}`, JSON.stringify(requiredDocs));
+    }
+  }, [requiredDocs, caseId]);
+
+  const addRequiredDoc = () => {
+    if (newRequiredDoc.trim() && !requiredDocs.includes(newRequiredDoc.trim())) {
+      setRequiredDocs([...requiredDocs, newRequiredDoc.trim()]);
+      setNewRequiredDoc("");
+    }
+  };
+
+  const removeRequiredDoc = (docName: string) => {
+    setRequiredDocs(requiredDocs.filter(doc => doc !== docName));
+  };
 
   const handleStartUpload = () => {
     setShowRequiredDocs(true);
@@ -189,8 +220,49 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
                     <DialogTitle>Documents requis pour ce dossier</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-medium">Documents requis</h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowManageRequiredDocs(!showManageRequiredDocs)}
+                      >
+                        Gérer la liste
+                      </Button>
+                    </div>
+
+                    {showManageRequiredDocs && (
+                      <div className="space-y-3 p-4 border rounded-lg bg-muted/50 mb-4">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Nom du document requis"
+                            value={newRequiredDoc}
+                            onChange={(e) => setNewRequiredDoc(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addRequiredDoc()}
+                          />
+                          <Button onClick={addRequiredDoc} size="sm">
+                            Ajouter
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {requiredDocs.map((doc, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-background rounded border">
+                              <span>{doc}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeRequiredDoc(doc)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-3">
-                      {CATEGORIES.map((cat) => {
+                      {requiredDocs.map((cat) => {
                         const hasDoc = docs.some(d => d.document_type === cat);
                         return (
                           <div key={cat} className="flex items-center justify-between p-3 border rounded-lg">
@@ -241,12 +313,12 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
                 </div>
                 <div>
                   <Label>Catégorie</Label>
-                  <Select value={category} onValueChange={(v) => setCategory(v as (typeof CATEGORIES)[number])}>
+                  <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choisir une catégorie" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.map((c) => (
+                      {requiredDocs.map((c) => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>
