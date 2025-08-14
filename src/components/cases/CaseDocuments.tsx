@@ -19,14 +19,6 @@ interface CaseDocumentsProps {
   clientId?: string;
 }
 
-const DEFAULT_CATEGORIES = [
-  "Contrats",
-  "Pièces",
-  "Courriers",
-  "Preuves", 
-  "Plaidoiries",
-  "Autres",
-] as const;
 
 const formatBytes = (bytes?: number) => {
   if (!bytes && bytes !== 0) return "-";
@@ -48,7 +40,7 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<string>("Autres");
+  const [category, setCategory] = useState<string>("");
 
   const accept = useMemo(
     () => ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -60,13 +52,13 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
     return requiredDocs.filter(cat => !existingCategories.includes(cat));
   }, [docs, requiredDocs]);
 
-  // Initialize required docs with default categories
+  // Initialize required docs from localStorage
   useEffect(() => {
     const savedRequiredDocs = localStorage.getItem(`requiredDocs_${caseId}`);
     if (savedRequiredDocs) {
       setRequiredDocs(JSON.parse(savedRequiredDocs));
     } else {
-      setRequiredDocs([...DEFAULT_CATEGORIES]);
+      setRequiredDocs([]);
     }
   }, [caseId]);
 
@@ -162,7 +154,7 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
       setDocs(data || []);
       setFile(null);
       setTitle("");
-      setCategory("Autres");
+      setCategory("");
     } catch (e: any) {
       console.error(e);
       toast({ title: "Échec du téléversement", description: e?.message ?? "Erreur inconnue", variant: "destructive" });
