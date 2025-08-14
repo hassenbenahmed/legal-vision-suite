@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Download, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Trash2, Download, Upload, CheckCircle, AlertTriangle, FileText } from "lucide-react";
 
 interface CaseDocumentsProps {
   caseId: string;
@@ -38,6 +40,8 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState<any[]>([]);
+  const [showRequiredDocs, setShowRequiredDocs] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -47,6 +51,21 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
     () => ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     []
   );
+
+  const missingCategories = useMemo(() => {
+    const existingCategories = docs.map(d => d.document_type);
+    return CATEGORIES.filter(cat => !existingCategories.includes(cat));
+  }, [docs]);
+
+  const handleStartUpload = () => {
+    setShowRequiredDocs(true);
+    setConfirmed(false);
+  };
+
+  const handleConfirmUpload = () => {
+    setConfirmed(true);
+    setShowRequiredDocs(false);
+  };
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -156,34 +175,98 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
           <CardTitle>Ajouter un document</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="title">Titre</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre du document" />
+          {!confirmed ? (
+            <div className="space-y-4">
+              <Dialog open={showRequiredDocs} onOpenChange={setShowRequiredDocs}>
+                <DialogTrigger asChild>
+                  <Button onClick={handleStartUpload} className="w-full">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Commencer le téléversement
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Documents requis pour ce dossier</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3">
+                      {CATEGORIES.map((cat) => {
+                        const hasDoc = docs.some(d => d.document_type === cat);
+                        return (
+                          <div key={cat} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              {hasDoc ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                              )}
+                              <span className="font-medium">{cat}</span>
+                            </div>
+                            <Badge variant={hasDoc ? "default" : "secondary"}>
+                              {hasDoc ? "Présent" : "Manquant"}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {missingCategories.length > 0 && (
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          <strong>{missingCategories.length} document(s) manquant(s) :</strong> {missingCategories.join(", ")}. 
+                          Vous pouvez les ajouter maintenant ou plus tard.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowRequiredDocs(false)}>
+                        Annuler
+                      </Button>
+                      <Button onClick={handleConfirmUpload}>
+                        Continuer le téléversement
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
-            <div>
-              <Label>Catégorie</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as (typeof CATEGORIES)[number])}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir une catégorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="file">Fichier (PDF/DOC/DOCX)</Label>
-              <Input id="file" type="file" accept={accept} onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button onClick={handleUpload} disabled={!file || !user}>
-              <Upload className="h-4 w-4 mr-2" />Téléverser
-            </Button>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="title">Titre</Label>
+                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre du document" />
+                </div>
+                <div>
+                  <Label>Catégorie</Label>
+                  <Select value={category} onValueChange={(v) => setCategory(v as (typeof CATEGORIES)[number])}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="file">Fichier (PDF/DOC/DOCX)</Label>
+                  <Input id="file" type="file" accept={accept} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setConfirmed(false)}>
+                  Retour
+                </Button>
+                <Button onClick={handleUpload} disabled={!file || !user}>
+                  <Upload className="h-4 w-4 mr-2" />Téléverser
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
