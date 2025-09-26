@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, CheckSquare, Clock, AlertTriangle, Calendar, FileText, Edit, Eye, EyeOff } from 'lucide-react';
+import { Plus, CheckSquare, Clock, AlertTriangle, Calendar, FileText, Edit, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TaskDialog from '@/components/tasks/TaskDialog';
 
@@ -143,12 +144,11 @@ const Tasks = () => {
   };
 
   const TaskCard = ({ task }: { task: Task }) => {
-    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const PriorityIcon = getPriorityIcon(task.priority);
     const overdue = isOverdue(task.due_date) && task.status !== 'Terminé';
     
-    const descriptionLimit = 100;
-    const shouldTruncateDescription = task.description && task.description.length > descriptionLimit;
+    const descriptionLimit = 80;
+    const shouldShowDescriptionDialog = task.description && task.description.length > descriptionLimit;
 
     return (
       <Card className={`hover:shadow-lg transition-shadow ${overdue ? 'border-destructive' : ''}`}>
@@ -184,23 +184,32 @@ const Tasks = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground">Description:</p>
-                  {shouldTruncateDescription && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                      className="h-6 w-6 p-0"
-                    >
-                      {isDescriptionExpanded ? (
-                        <EyeOff className="h-3 w-3" />
-                      ) : (
-                        <Eye className="h-3 w-3" />
-                      )}
-                    </Button>
+                  {shouldShowDescriptionDialog && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>{task.title} - Description complète</DialogTitle>
+                        </DialogHeader>
+                        <div className="mt-4">
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                            {task.description}
+                          </p>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {shouldTruncateDescription && !isDescriptionExpanded
+                <p className="text-sm text-muted-foreground break-words">
+                  {shouldShowDescriptionDialog 
                     ? `${task.description.slice(0, descriptionLimit)}...`
                     : task.description
                   }
