@@ -257,12 +257,12 @@ const TaskDialog: React.FC<TaskDialogProps> = ({ task, onSuccess, trigger }) => 
 
             <div className="space-y-2">
               <Label htmlFor="legal_case_id">Dossier juridique</Label>
-              <Select value={formData.legal_case_id || ''} onValueChange={(value) => setFormData({...formData, legal_case_id: value})}>
+              <Select value={formData.legal_case_id || 'none'} onValueChange={(value) => setFormData({...formData, legal_case_id: value === 'none' ? '' : value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un dossier (optionnel)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun dossier</SelectItem>
+                  <SelectItem value="none">Aucun dossier</SelectItem>
                   {legalCases.map((legalCase) => (
                     <SelectItem key={legalCase.id} value={legalCase.id}>
                       {legalCase.title} (#{legalCase.case_number})
