@@ -48,6 +48,7 @@ const Tasks = () => {
             case_number
           )
         `)
+        .eq('user_id', user?.id)
         .order('due_date', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
