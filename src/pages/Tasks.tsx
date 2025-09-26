@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, CheckSquare, Clock, AlertTriangle, Calendar, FileText, Edit } from 'lucide-react';
+import { Plus, CheckSquare, Clock, AlertTriangle, Calendar, FileText, Edit, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TaskDialog from '@/components/tasks/TaskDialog';
 
@@ -143,8 +143,12 @@ const Tasks = () => {
   };
 
   const TaskCard = ({ task }: { task: Task }) => {
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const PriorityIcon = getPriorityIcon(task.priority);
     const overdue = isOverdue(task.due_date) && task.status !== 'Terminé';
+    
+    const descriptionLimit = 100;
+    const shouldTruncateDescription = task.description && task.description.length > descriptionLimit;
 
     return (
       <Card className={`hover:shadow-lg transition-shadow ${overdue ? 'border-destructive' : ''}`}>
@@ -178,8 +182,29 @@ const Tasks = () => {
 
             {task.description && (
               <div>
-                <p className="text-sm font-medium text-foreground">Description:</p>
-                <p className="text-sm text-muted-foreground">{task.description}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Description:</p>
+                  {shouldTruncateDescription && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                      className="h-6 w-6 p-0"
+                    >
+                      {isDescriptionExpanded ? (
+                        <EyeOff className="h-3 w-3" />
+                      ) : (
+                        <Eye className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {shouldTruncateDescription && !isDescriptionExpanded
+                    ? `${task.description.slice(0, descriptionLimit)}...`
+                    : task.description
+                  }
+                </p>
               </div>
             )}
 
