@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, CheckSquare, Clock, AlertTriangle, Calendar, FileText } from 'lucide-react';
+import { Plus, CheckSquare, Clock, AlertTriangle, Calendar, FileText, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import TaskDialog from '@/components/tasks/TaskDialog';
 
 interface Task {
   id: string;
@@ -200,16 +201,28 @@ const Tasks = () => {
           </div>
 
           <div className="flex justify-between items-center mt-4 pt-4 border-t">
-            {task.status !== 'Terminé' && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => markAsCompleted(task.id)}
-              >
-                <CheckSquare className="h-4 w-4 mr-2" />
-                Marquer comme terminé
-              </Button>
-            )}
+            <div className="flex gap-2">
+              <TaskDialog 
+                task={task} 
+                onSuccess={fetchTasks}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </Button>
+                }
+              />
+              {task.status !== 'Terminé' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => markAsCompleted(task.id)}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Marquer comme terminé
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -241,10 +254,7 @@ const Tasks = () => {
             <h1 className="text-3xl font-bold text-foreground">Gestion des Tâches</h1>
             <p className="text-muted-foreground">Suivez vos tâches et échéances</p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvelle Tâche
-          </Button>
+          <TaskDialog onSuccess={fetchTasks} />
         </div>
 
         {/* Statistiques rapides */}
