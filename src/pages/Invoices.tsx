@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, Receipt, Search, Euro, Calendar, Eye, Edit, Send, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import InvoiceDialog, { InvoiceFormData } from '@/components/invoices/InvoiceDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface Invoice {
   id: string;
@@ -24,16 +26,16 @@ interface Invoice {
   notes?: string;
   client_id: string;
   legal_case_id?: string;
-  clients: {
+  clients?: {
     first_name?: string;
     last_name?: string;
     company_name?: string;
     client_type: string;
-  };
+  } | null;
   legal_cases?: {
     title: string;
     case_number: string;
-  };
+  } | null;
 }
 
 const Invoices = () => {
@@ -79,6 +81,7 @@ const Invoices = () => {
             case_number
           )
         `)
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -95,7 +98,8 @@ const Invoices = () => {
     }
   };
 
-  const getClientName = (client: any) => {
+  const getClientName = (client?: Invoice['clients'] | null) => {
+    if (!client) return 'Client';
     if (client.client_type === 'Entreprise') {
       return client.company_name || 'Entreprise';
     }
@@ -122,33 +126,94 @@ const Invoices = () => {
     }
   };
 
-  const isOverdue = (dueDate: string, status: string) => {
-    return status !== 'Payée' && status !== 'Annulée' && new Date(dueDate) < new Date();
+  const isOverdue = (dueDate?: string | null, status?: string) => {
+    if (!dueDate) return false;
+    if (status === 'Payée' || status === 'Annulée') return false;
+    const due = new Date(dueDate);
+    if (Number.isNaN(due.getTime())) return false;
+    return due < new Date();
   };
 
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('fr-FR', {
+  const formatCurrency = (amount?: number | null) => {
+    const safeAmount = typeof amount === 'number' && !Number.isNaN(amount) ? amount : 0;
+    return safeAmount.toLocaleString('fr-FR', {
       style: 'currency',
       currency: 'EUR'
     });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR');
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('fr-FR');
+  };
+
+  const handleUpdateInvoice = async (invoiceId: string, updates: Partial<InvoiceFormData>) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', invoiceId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      toast({
+        title: 'Facture mise à jour',
+        description: 'Le statut de la facture a été mis à jour',
+      });
+      fetchInvoices();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la facture:', error);
+      toast({
+        title: 'Erreur',
+        description: "Impossible de mettre à jour la facture",
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      toast({
+        title: 'Facture supprimée',
+        description: 'La facture a été supprimée avec succès',
+      });
+      fetchInvoices();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la facture:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer la facture',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Calculs pour les statistiques
   const totalRevenue = invoices
     .filter(inv => inv.status === 'Payée')
-    .reduce((sum, inv) => sum + inv.total_amount, 0);
+    .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
   const pendingAmount = invoices
     .filter(inv => inv.status === 'Envoyée')
-    .reduce((sum, inv) => sum + inv.total_amount, 0);
+    .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
   const overdueAmount = invoices
     .filter(inv => isOverdue(inv.due_date, inv.status))
-    .reduce((sum, inv) => sum + inv.total_amount, 0);
+    .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
   if (loading) {
     return (
@@ -168,10 +233,15 @@ const Invoices = () => {
             <h1 className="text-3xl font-bold text-foreground">Facturation</h1>
             <p className="text-muted-foreground">Gérez vos factures et paiements</p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvelle Facture
-          </Button>
+          <InvoiceDialog
+            onSuccess={fetchInvoices}
+            trigger={(
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvelle Facture
+              </Button>
+            )}
+          />
         </div>
 
         {/* Statistiques rapides */}
@@ -254,10 +324,15 @@ const Invoices = () => {
                 }
               </p>
               {!searchTerm && (
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer une facture
-                </Button>
+                <InvoiceDialog
+                  onSuccess={fetchInvoices}
+                  trigger={(
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer une facture
+                    </Button>
+                  )}
+                />
               )}
             </CardContent>
           </Card>
@@ -329,21 +404,56 @@ const Invoices = () => {
 
                     <div className="flex justify-between items-center mt-4 pt-4 border-t">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <InvoiceDialog
+                          invoice={invoice}
+                          mode="view"
+                          onSuccess={fetchInvoices}
+                          trigger={(
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                        />
+                        <InvoiceDialog
+                          invoice={invoice}
+                          onSuccess={fetchInvoices}
+                          trigger={(
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                        />
                         {invoice.status === 'Brouillon' && (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateInvoice(invoice.id, { status: 'Envoyée' })}
+                          >
                             <Send className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
-                      <Button variant="outline" size="sm" className="text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Supprimer la facture</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action supprimera définitivement la facture {invoice.invoice_number}. Voulez-vous continuer ?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteInvoice(invoice.id)}>
+                              Supprimer
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </CardContent>
                 </Card>

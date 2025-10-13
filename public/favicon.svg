@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Legal Vision Suite Favicon</title>
+  <desc id="desc">Minimal justice scale icon in brand blue</desc>
+  <rect width="64" height="64" rx="14" fill="#ffffff" />
+  <g fill="none" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 12v28" />
+    <path d="M20 24h24" />
+    <path d="M24 50h16" />
+    <path d="M32 12l6-6" />
+    <path d="M32 12l-6-6" />
+    <path d="M12 36h16l-8-12z" />
+    <path d="M52 36H36l8-12z" />
+    <path d="M16 40c1.333 4 4.667 6 8 6s6.667-2 8-6" />
+    <path d="M48 40c-1.333 4-4.667 6-8 6s-6.667-2-8-6" />
+  </g>
+</svg>

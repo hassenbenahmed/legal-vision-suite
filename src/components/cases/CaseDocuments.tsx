@@ -7,18 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Download, Upload, CheckCircle, AlertTriangle, FileText } from "lucide-react";
+import { 
+  Trash2, Download, Upload, CheckCircle, AlertTriangle, FileText, 
+  Plus, File, FileImage, FileSpreadsheet, Archive,
+  FolderOpen, Clock
+} from "lucide-react";
 
 interface CaseDocumentsProps {
   caseId: string;
   clientId?: string;
 }
-
 
 const formatBytes = (bytes?: number) => {
   if (!bytes && bytes !== 0) return "-";
@@ -31,65 +32,56 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [docs, setDocs] = useState<any[]>([]);
-  const [showRequiredDocs, setShowRequiredDocs] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const [requiredDocs, setRequiredDocs] = useState<string[]>([]);
-  const [newRequiredDoc, setNewRequiredDoc] = useState("");
-  const [showManageRequiredDocs, setShowManageRequiredDocs] = useState(false);
-
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState("");
+  
+  // États pour l'ajout de fichier à un document existant
+  const [showAddFileDialog, setShowAddFileDialog] = useState(false);
+  const [selectedDocForFile, setSelectedDocForFile] = useState<any>(null);
+  const [fileToAdd, setFileToAdd] = useState<File | null>(null);
 
   const accept = useMemo(
-    () => ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    () => ".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.zip,.rar,.txt,.xlsx,.xls,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*,text/*,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     []
   );
 
-  const missingCategories = useMemo(() => {
-    const existingCategories = docs.map(d => d.document_type);
-    return requiredDocs.filter(cat => !existingCategories.includes(cat));
-  }, [docs, requiredDocs]);
+  // Catégories simplifiées
+  const categories = [
+    "CONTRAT", "FACTURE", "CORRESPONDANCE", "JUGEMENT", "EXPERTISE",
+    "PIECE_IDENTITE", "ATTESTATION", "RAPPORT", "ORDONNANCE", "AUTRE"
+  ];
 
-  // Initialize required docs from localStorage
-  useEffect(() => {
-    const savedRequiredDocs = localStorage.getItem(`requiredDocs_${caseId}`);
-    if (savedRequiredDocs) {
-      setRequiredDocs(JSON.parse(savedRequiredDocs));
-    } else {
-      setRequiredDocs([]);
+  // Fonction pour obtenir l'icône du fichier
+  const getFileIcon = (mimeType: string, fileName: string, hasFile: boolean) => {
+    // Si pas de fichier, afficher l'icône d'alerte
+    if (!hasFile) {
+      return <span className="text-lg">❗</span>;
     }
-  }, [caseId]);
+    
+    // Si fichier présent, afficher l'icône de succès + icône du type
+    const typeIcon = (() => {
+      if (mimeType?.includes('application/pdf')) return <FileText className="h-4 w-4 text-red-500" />;
+      if (mimeType?.includes('image/')) return <FileImage className="h-4 w-4 text-blue-500" />;
+      if (mimeType?.includes('spreadsheet') || fileName?.endsWith('.xlsx') || fileName?.endsWith('.xls')) 
+        return <FileSpreadsheet className="h-4 w-4 text-green-500" />;
+      if (fileName?.endsWith('.zip') || fileName?.endsWith('.rar')) 
+        return <Archive className="h-4 w-4 text-orange-500" />;
+      return <FileText className="h-4 w-4 text-gray-500" />;
+    })();
 
-  // Save required docs to localStorage when changed
-  useEffect(() => {
-    if (requiredDocs.length > 0) {
-      localStorage.setItem(`requiredDocs_${caseId}`, JSON.stringify(requiredDocs));
-    }
-  }, [requiredDocs, caseId]);
-
-  const addRequiredDoc = () => {
-    if (newRequiredDoc.trim() && !requiredDocs.includes(newRequiredDoc.trim())) {
-      setRequiredDocs([...requiredDocs, newRequiredDoc.trim()]);
-      setNewRequiredDoc("");
-    }
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-lg">✅</span>
+        {typeIcon}
+      </div>
+    );
   };
 
-  const removeRequiredDoc = (docName: string) => {
-    setRequiredDocs(requiredDocs.filter(doc => doc !== docName));
-  };
-
-  const handleStartUpload = () => {
-    setShowRequiredDocs(true);
-    setConfirmed(false);
-  };
-
-  const handleConfirmUpload = () => {
-    setConfirmed(true);
-    setShowRequiredDocs(false);
-  };
-
+  // Chargement des documents
   useEffect(() => {
     const fetchDocs = async () => {
       try {
@@ -110,54 +102,140 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
     fetchDocs();
   }, [caseId, toast]);
 
+  // Upload de document
   const handleUpload = async () => {
     if (!user) return;
-    if (!file) {
-      toast({ title: "Fichier requis", description: "Sélectionnez un fichier à téléverser.", variant: "destructive" });
+    if (!title.trim()) {
+      toast({ title: "Titre requis", description: "Veuillez saisir un titre pour le document.", variant: "destructive" });
       return;
     }
 
     try {
-      const safeTitle = title?.trim() || file.name;
-      const uid = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-      const path = `${user.id}/${caseId}/${category}/${uid}-${sanitizedName}`;
+      setUploading(true);
+      
+      let filePath = null;
+      let fileSize = 0;
+      let mimeType = null;
 
-      const { error: upErr } = await supabase.storage
-        .from("case-documents")
-        .upload(path, file, { contentType: file.type || undefined, upsert: false });
-      if (upErr) throw upErr;
+      // Upload du fichier seulement s'il y en a un
+      if (file) {
+        const uid = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+        const path = `${user.id}/${caseId}/${category || 'general'}/${uid}-${sanitizedName}`;
+
+        const { error: upErr } = await supabase.storage
+          .from("case-documents")
+          .upload(path, file, { contentType: file.type || undefined, upsert: false });
+        
+        if (upErr) throw upErr;
+        
+        filePath = path;
+        fileSize = file.size;
+        mimeType = file.type || null;
+      }
 
       const payload = {
         user_id: user.id,
         legal_case_id: caseId,
         client_id: clientId ?? null,
-        title: safeTitle,
-        document_type: category as string,
+        title: title.trim(),
+        document_type: category || "Note",
         description: null,
-        file_url: path,
-        mime_type: file.type || null,
-        file_size: file.size,
-        is_confidential: true,
+        file_url: filePath,
+        mime_type: mimeType,
+        file_size: fileSize,
+        is_confidential: false,
       } as const;
 
       const { error: insErr } = await supabase.from("documents").insert(payload as any);
       if (insErr) throw insErr;
-
-      toast({ title: "Téléversement réussi", description: "Le document a été ajouté." });
-      // refresh list
+      
+      toast({ 
+        title: "Document ajouté", 
+        description: file ? "Le document avec fichier a été ajouté avec succès." : "La note a été ajoutée avec succès." 
+      });
+      
+      // Refresh list
       const { data } = await supabase
         .from("documents")
         .select("*")
         .eq("legal_case_id", caseId)
         .order("created_at", { ascending: false });
+      
       setDocs(data || []);
+      
+      // Reset form
       setFile(null);
       setTitle("");
       setCategory("");
+      setShowUploadDialog(false);
+      
     } catch (e: any) {
       console.error(e);
       toast({ title: "Échec du téléversement", description: e?.message ?? "Erreur inconnue", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Fonction pour ajouter un fichier à un document existant
+  const handleAddFileToDocument = async () => {
+    if (!fileToAdd || !selectedDocForFile) return;
+
+    try {
+      setUploading(true);
+      
+      const uid = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const sanitizedName = fileToAdd.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+      const path = `${user.id}/${caseId}/${selectedDocForFile.document_type}/${uid}-${sanitizedName}`;
+
+      // Upload du fichier
+      const { error: upErr } = await supabase.storage
+        .from("case-documents")
+        .upload(path, fileToAdd, { contentType: fileToAdd.type || undefined, upsert: false });
+      
+      if (upErr) throw upErr;
+
+      // Mettre à jour le document avec les informations du fichier
+      const { error: updateErr } = await supabase
+        .from("documents")
+        .update({
+          file_url: path,
+          mime_type: fileToAdd.type || null,
+          file_size: fileToAdd.size,
+        })
+        .eq("id", selectedDocForFile.id);
+      
+      if (updateErr) throw updateErr;
+
+      // Actualiser la liste
+      const { data } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("legal_case_id", caseId)
+        .order("created_at", { ascending: false });
+      
+      setDocs(data || []);
+      
+      // Réinitialiser
+      setShowAddFileDialog(false);
+      setSelectedDocForFile(null);
+      setFileToAdd(null);
+      
+      toast({ 
+        title: "Fichier ajouté", 
+        description: "Le fichier a été attaché au document avec succès." 
+      });
+      
+    } catch (error) {
+      console.error(error);
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible d'ajouter le fichier", 
+        variant: "destructive" 
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -175,11 +253,18 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
   };
 
   const handleDelete = async (doc: any) => {
-    try {
-      const path = doc.file_url as string;
-      const { error: delFileErr } = await supabase.storage.from("case-documents").remove([path]);
-      if (delFileErr) throw delFileErr;
+    const confirmDelete = confirm(`Êtes-vous sûr de vouloir supprimer "${doc.title}" ?`);
+    if (!confirmDelete) return;
 
+    try {
+      // Supprimer le fichier seulement s'il existe
+      if (doc.file_url) {
+        const path = doc.file_url as string;
+        const { error: delFileErr } = await supabase.storage.from("case-documents").remove([path]);
+        if (delFileErr) throw delFileErr;
+      }
+
+      // Supprimer l'enregistrement de la base de données
       const { error: delRowErr } = await supabase.from("documents").delete().eq("id", doc.id);
       if (delRowErr) throw delRowErr;
 
@@ -192,164 +277,163 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Ajouter un document</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!confirmed ? (
+    <div className="space-y-4">
+      {/* Bouton d'ajout simple en haut */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <FolderOpen className="h-5 w-5" />
+          Documents du dossier ({docs.length})
+        </h3>
+        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un document
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Ajouter un document</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
-              <Dialog open={showRequiredDocs} onOpenChange={setShowRequiredDocs}>
-                <DialogTrigger asChild>
-                  <Button onClick={handleStartUpload} className="w-full">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Commencer le téléversement
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Documents requis pour ce dossier</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium">Documents requis</h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowManageRequiredDocs(!showManageRequiredDocs)}
-                      >
-                        Gérer la liste
-                      </Button>
-                    </div>
-
-                    {showManageRequiredDocs && (
-                      <div className="space-y-3 p-4 border rounded-lg bg-muted/50 mb-4">
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Nom du document requis"
-                            value={newRequiredDoc}
-                            onChange={(e) => setNewRequiredDoc(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && addRequiredDoc()}
-                          />
-                          <Button onClick={addRequiredDoc} size="sm">
-                            Ajouter
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {requiredDocs.map((doc, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-background rounded border">
-                              <span>{doc}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeRequiredDoc(doc)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-3">
-                      {requiredDocs.map((cat) => {
-                        const hasDoc = docs.some(d => d.document_type === cat);
-                        return (
-                          <div key={cat} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              {hasDoc ? (
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                              ) : (
-                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                              )}
-                              <span className="font-medium">{cat}</span>
-                            </div>
-                            <Badge variant={hasDoc ? "default" : "secondary"}>
-                              {hasDoc ? "Présent" : "Manquant"}
-                            </Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    
-                    {missingCategories.length > 0 && (
-                      <Alert>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          <strong>{missingCategories.length} document(s) manquant(s) :</strong> {missingCategories.join(", ")}. 
-                          Vous pouvez les ajouter maintenant ou plus tard.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowRequiredDocs(false)}>
-                        Annuler
-                      </Button>
-                      <Button onClick={handleConfirmUpload}>
-                        Continuer le téléversement
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <div>
+                <Label htmlFor="title">Titre du document</Label>
+                <Input 
+                  id="title" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                  placeholder="Nom du document" 
+                />
+              </div>
+              <div>
+                <Label>Catégorie (optionnelle)</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir une catégorie (optionnel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="file">Fichier (optionnel)</Label>
+                <Input 
+                  id="file" 
+                  type="file" 
+                  accept={accept} 
+                  onChange={(e) => setFile(e.target.files?.[0] || null)} 
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vous pouvez ajouter un document sans fichier (ex: note, mémo)
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowUploadDialog(false)}>
+                  Annuler
+                </Button>
+                <Button onClick={handleUpload} disabled={!title.trim() || uploading}>
+                  {uploading ? "Upload..." : "Ajouter"}
+                </Button>
+              </div>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="title">Titre</Label>
-                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre du document" />
-                </div>
-                <div>
-                  <Label>Catégorie</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choisir une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {requiredDocs.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="file">Fichier (PDF/DOC/DOCX)</Label>
-                  <Input id="file" type="file" accept={accept} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Dialog pour ajouter un fichier à un document existant */}
+      <Dialog open={showAddFileDialog} onOpenChange={setShowAddFileDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter un fichier</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedDocForFile && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Document :</p>
+                <p className="text-lg">{selectedDocForFile.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  Catégorie : {selectedDocForFile.document_type}
+                </p>
+              </div>
+            )}
+            
+            <div>
+              <Label htmlFor="file-to-add">Sélectionner un fichier</Label>
+              <Input 
+                id="file-to-add" 
+                type="file" 
+                accept={accept} 
+                onChange={(e) => setFileToAdd(e.target.files?.[0] || null)} 
+              />
+            </div>
+            
+            {fileToAdd && (
+              <div className="p-3 border rounded-lg bg-green-50">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="font-medium">{fileToAdd.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatBytes(fileToAdd.size)}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setConfirmed(false)}>
-                  Retour
-                </Button>
-                <Button onClick={handleUpload} disabled={!file || !user}>
-                  <Upload className="h-4 w-4 mr-2" />Téléverser
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowAddFileDialog(false);
+                  setSelectedDocForFile(null);
+                  setFileToAdd(null);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleAddFileToDocument} 
+                disabled={!fileToAdd || uploading}
+              >
+                {uploading ? "Upload..." : "Ajouter le fichier"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      <Separator />
-
+      {/* Liste simple des documents */}
       <Card>
-        <CardHeader>
-          <CardTitle>Documents du dossier</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <div className="text-muted-foreground">Chargement…</div>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Chargement des documents...</p>
+              </div>
+            </div>
           ) : docs.length === 0 ? (
-            <div className="text-muted-foreground">Aucun document pour ce dossier.</div>
+            <div className="text-center py-12">
+              <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Aucun document</h3>
+              <p className="text-muted-foreground mb-4">
+                Commencez par ajouter votre premier document au dossier
+              </p>
+              <Button onClick={() => setShowUploadDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un document
+              </Button>
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Titre</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Document</TableHead>
                   <TableHead>Catégorie</TableHead>
                   <TableHead>Taille</TableHead>
                   <TableHead>Date</TableHead>
@@ -357,21 +441,75 @@ const CaseDocuments: React.FC<CaseDocumentsProps> = ({ caseId, clientId }) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {docs.map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell className="font-medium">{d.title}</TableCell>
+                {docs.map((doc) => (
+                  <TableRow key={doc.id} className="hover:bg-muted/50">
                     <TableCell>
-                      <Badge variant="secondary">{d.document_type}</Badge>
+                      {getFileIcon(doc.mime_type, doc.title, !!doc.file_url)}
                     </TableCell>
-                    <TableCell>{formatBytes(d.file_size)}</TableCell>
-                    <TableCell>{new Date(d.created_at).toLocaleString("fr-FR")}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleDownload(d.file_url)}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(d)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{doc.title}</p>
+                        {!doc.file_url && (
+                          <Badge variant="secondary" className="text-xs mt-1">
+                            Note (sans fichier)
+                          </Badge>
+                        )}
+                        {doc.is_confidential && (
+                          <Badge variant="destructive" className="text-xs mt-1">
+                            Confidentiel
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {doc.document_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {doc.file_url ? formatBytes(doc.file_size) : "-"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <div className="flex items-center gap-1 text-sm">
+                        <Clock className="h-3 w-3" />
+                        {new Date(doc.created_at).toLocaleDateString("fr-FR")}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-1 justify-end">
+                        {doc.file_url ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDownload(doc.file_url)}
+                            title="Télécharger"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              setSelectedDocForFile(doc);
+                              setShowAddFileDialog(true);
+                            }}
+                            title="Ajouter un fichier"
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Upload className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-destructive hover:text-destructive" 
+                          onClick={() => handleDelete(doc)}
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

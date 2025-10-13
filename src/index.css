@@ -110,3 +110,44 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Styles personnalisés pour le scroll */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Animation pour les éléments sticky */
+.sticky-header {
+  backdrop-filter: blur(8px);
+  background-color: hsla(var(--background) / 0.95);
+}
+
+/* Amélioration de la sélection */
+.document-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.1);
+}
+
+.document-card.selected {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2);
+}

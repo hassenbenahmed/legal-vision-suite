@@ -14,12 +14,22 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface Task {
   id?: string;
   title: string;
-  description?: string;
+  description?: string | null;
   task_type: string;
   status: string;
   priority: string;
-  due_date?: string;
-  legal_case_id?: string;
+  due_date?: string | null;
+  legal_case_id?: string | null;
+}
+
+interface TaskFormState {
+  title: string;
+  description: string;
+  task_type: string;
+  status: string;
+  priority: string;
+  due_date: string;
+  legal_case_id: string;
 }
 
 interface LegalCase {
@@ -40,8 +50,8 @@ const TaskDialog: React.FC<TaskDialogProps> = ({ task, onSuccess, trigger }) => 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [legalCases, setLegalCases] = useState<LegalCase[]>([]);
-  
-  const [formData, setFormData] = useState<Task>({
+
+  const initialFormState: TaskFormState = {
     title: '',
     description: '',
     task_type: 'Général',
@@ -49,16 +59,28 @@ const TaskDialog: React.FC<TaskDialogProps> = ({ task, onSuccess, trigger }) => 
     priority: 'Normale',
     due_date: '',
     legal_case_id: ''
+  };
+
+  const [formData, setFormData] = useState<TaskFormState>(initialFormState);
+
+  const mapTaskToFormState = (taskToMap: Task): TaskFormState => ({
+    title: taskToMap.title ?? '',
+    description: taskToMap.description ?? '',
+    task_type: taskToMap.task_type ?? 'Général',
+    status: taskToMap.status ?? 'À faire',
+    priority: taskToMap.priority ?? 'Normale',
+    due_date: taskToMap.due_date ? new Date(taskToMap.due_date).toISOString().slice(0, 16) : '',
+    legal_case_id: taskToMap.legal_case_id ?? ''
   });
 
   useEffect(() => {
-    if (task) {
-      setFormData({
-        ...task,
-        due_date: task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : ''
-      });
+    if (task && open) {
+      setFormData(mapTaskToFormState(task));
     }
-  }, [task]);
+    if (!task && open) {
+      setFormData(initialFormState);
+    }
+  }, [task, open]);
 
   useEffect(() => {
     if (open && user) {
@@ -87,23 +109,28 @@ const TaskDialog: React.FC<TaskDialogProps> = ({ task, onSuccess, trigger }) => 
     
     setLoading(true);
     try {
-      const taskData = {
-        ...formData,
-        user_id: user.id,
+      const baseData = {
+        title: formData.title.trim(),
+        description: formData.description.trim() || null,
+        task_type: formData.task_type,
+        status: formData.status,
+        priority: formData.priority,
         due_date: formData.due_date ? new Date(formData.due_date).toISOString() : null,
-        legal_case_id: formData.legal_case_id || null
+        legal_case_id: formData.legal_case_id || null,
+        updated_at: new Date().toISOString()
       };
 
       let result;
       if (task?.id) {
         result = await supabase
           .from('tasks')
-          .update(taskData)
-          .eq('id', task.id);
+          .update(baseData)
+          .eq('id', task.id)
+          .eq('user_id', user.id);
       } else {
         result = await supabase
           .from('tasks')
-          .insert([taskData]);
+          .insert([{ ...baseData, user_id: user.id, created_at: new Date().toISOString() }]);
       }
 
       if (result.error) throw result.error;
@@ -114,15 +141,7 @@ const TaskDialog: React.FC<TaskDialogProps> = ({ task, onSuccess, trigger }) => 
       });
 
       setOpen(false);
-      setFormData({
-        title: '',
-        description: '',
-        task_type: 'Général',
-        status: 'À faire',
-        priority: 'Normale',
-        due_date: '',
-        legal_case_id: ''
-      });
+      setFormData(initialFormState);
       onSuccess();
     } catch (error) {
       console.error('Erreur:', error);
